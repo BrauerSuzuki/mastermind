@@ -6,8 +6,6 @@ import random
 import platform
 import os
 import numpy as np
-#import itertools as it #numpy seems faster
-#import secrets #better, but slower number generator
 
 sg.theme("LightBlue1")
 
@@ -23,7 +21,8 @@ max_dig = 8 #max number of digits
 max_tries = 9 #max number of guesses
 colors = ["colors/red2.png","colors/blue2.png","colors/green2.png","colors/yellow2.png","colors/violet2.png","colors/marine2.png","colors/orange2.png","colors/dgreen2.png",] #available colors, "blue","green","yellow","orange","purple","light blue","brown","pink"
 bg = sg.theme_background_color()
-sol = [-1]*def_dig #init code
+#sol = np.full((1,def_dig),-1,dtype=np.int8) #[-1]*def_digsol #init code
+sol = np.array([-1 for i in range(def_dig)])
 gno = 0 #guess number
 count = 0 #combo counter
 timetaken = 0
@@ -40,10 +39,10 @@ sc = np.array([random.randrange(def_col) for i in range(def_dig)]) #secret code
     # return arr.reshape(-1, la)
 
 def cartesian_product(a,b):
-    arr = np.empty([a]*b+[b], dtype=np.int8)
-    for i, c in enumerate(np.ix_(*([np.arange(a)]*b))):
-        arr[...,i] = c
-    return arr.reshape(-1,b)
+	arr = np.empty([a]*b+[b], dtype=np.int8)
+	for i, c in enumerate(np.ix_(*([np.arange(a)]*b))):
+		arr[...,i] = c
+	return arr.reshape(-1,b)
 
 def evalcode(code,guess):
 	rightg = np.count_nonzero(code==guess) #number of right guesses
@@ -57,8 +56,6 @@ def blockeval(code,guesses):
 	cc = np.unique(code,return_counts=True)
 	cl = len(cc[0])
 	if any(sum(min(cc[1][c],np.count_nonzero(g[0]==cc[0][c])) for c in range(cl))!=sum(g[1]) for g in guesses): return False
-	#for g in guesses:
-	#	if sum(min(cc[1][c],np.count_nonzero(g[0]==cc[0][c])) for c in range(cl))!=sum(g[1]): return False
 	return True
 
 def init():
@@ -82,7 +79,8 @@ def init():
 		[window["code"+str(c)].update(disabled=False,image_filename="colors/white2.png") for c in range(def_dig)]
 		[window["code"+str(c)].update(disabled=dis,image_filename="colors/dis2.png") for c in range(def_dig,max_dig)]
 		global sol
-		sol = np.full((1,def_dig),-1,dtype=np.int8) #[-1]*def_dig
+		#sol = np.full((1,def_dig),-1,dtype=np.int8) #[-1]*def_dig
+		sol = np.array([-1 for i in range(def_dig)])
 	if player == "h":
 		window["start"].update(text="Check")
 		window["sol_field"].update("Solution:")
@@ -169,12 +167,15 @@ while True:
 		def_col = window.Element("nocol").Get()
 		init()
 
-	if player == "c" and event[:4] == "code": # in ["code"+str(c) for c in range(def_dig)]:
+	if player == "c" and event[:4] == "code": 
 		if len(event) == 5:
 			sol[int(event[4])] = (sol[int(event[4])]+1) % def_col #increase solution with left click
 			window[event].update(image_filename=colors[sol[int(event[4])]])
 		if len(event) == 6:
-			sol[int(event[4])] = (sol[int(event[4])]-1) % def_col #decrease solution with left click
+			if sol[int(event[4])] == -1: #start position
+				sol[int(event[4])] = def_col-1
+			else:
+				sol[int(event[4])] = (sol[int(event[4])]-1) % def_col #decrease solution with right click
 			window[event[:5]].update(image_filename=colors[sol[int(event[4])]])
 		window["nodig"].update(disabled=True)
 		window["nocol"].update(disabled=True)
@@ -221,12 +222,15 @@ while True:
 	if player == "h" and isinstance(event,str) and len(event) in [2,3]: #one of the grid buttons is clicked
 		window["human_player"].update(disabled=True)
 		window["computer_player"].update(disabled=True)
-		if len(event) == 2:
-			cc[int(event[0])][int(event[1])] = (cc[int(event[0])][int(event[1])]+1) % def_col #left mouse button
+		if len(event) == 2: #left mouse button
+			cc[int(event[0]),int(event[1])] = (cc[int(event[0]),int(event[1])]+1) % def_col 
 			window[event].update(image_filename=colors[cc[int(event[0])][int(event[1])]])
-		if len(event) == 3:
-			cc[int(event[0])][int(event[1])] = (cc[int(event[0])][int(event[1])]-1) % def_col #right mouse button
-			window[event[:2]].update(image_filename=colors[cc[int(event[0])][int(event[1])]])
+		if len(event) == 3: #right mouse button
+			if cc[int(event[0]),int(event[1])] == -1: #start position
+				cc[int(event[0]),int(event[1])] = def_col-1
+			else:
+				cc[int(event[0]),int(event[1])] = (cc[int(event[0]),int(event[1])]-1) % def_col 
+			window[event[:2]].update(image_filename=colors[cc[int(event[0]),int(event[1])]])
 		window["nodig"].update(disabled=True)
 		window["nocol"].update(disabled=True)
 	
@@ -265,8 +269,6 @@ while True:
 		
 	if player == "h" and event == "button2":
 		[window["code"+str(c)].update(image_filename=colors[sc[c]]) for c in range(def_dig)]
-		#window["nodig"].update(disabled=True)
-		#window["nocol"].update(disabled=True)
 		window["button2"].update(disabled=True)
 		window["start"].update(disabled=True)
 		[[window[str(c)+str(r)].update(disabled=dis) for c in range(max_tries)] for r in range(def_dig)]
